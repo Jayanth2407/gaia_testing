@@ -47,7 +47,7 @@ show_menu() {
     echo ""
     echo "📝 Select an option:"
     echo "1). Install Packages"
-    echo "2). Install Nodes (Max-5)"
+    echo "2). Install Nodes (Max-50)"
     echo "3). Start Nodes"
     echo "4). Stop Nodes"
     echo "5). Get NodeId and DeviceId"
@@ -306,7 +306,7 @@ while true; do
 
             echo "Enter number of nodes to create (1-5):"
             read -r count
-            if ! [[ "$count" =~ ^[1-5]$ ]]; then
+            if ! [[ "$count" =~ ^[1-50]$ ]]; then
                 echo "❌ Invalid input! Please enter a number between 1 and 5."
             else
                 for ((i = 1; i <= count; i++)); do
