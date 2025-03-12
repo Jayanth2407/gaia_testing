@@ -304,10 +304,10 @@ while true; do
                 fi
             done
 
-            echo "Enter number of nodes to create (1-5):"
+            echo "Enter number of nodes to create (1-50):"
             read -r count
-            if ! [[ "$count" =~ ^[1-50]$ ]]; then
-                echo "❌ Invalid input! Please enter a number between 1 and 5."
+            if ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -lt 1 ] || [ "$count" -gt 50 ]; then
+                echo "❌ Invalid input! Please enter a number between 1 and 50."
             else
                 for ((i = 1; i <= count; i++)); do
                     create_node "$((100 + i))" "$config_link"
