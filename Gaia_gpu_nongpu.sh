@@ -1,160 +1,326 @@
 #!/bin/bash
 
+# Exit on error and log all output
+set -e
+trap "echo 'Script interrupted. Exiting...'; exit 1" SIGINT SIGTERM
+LOG_FILE="gaia_node_manager.log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+# Display banner
 printf "\n"
 cat <<EOF
 
+██╗░░██╗░█████╗░░██████╗██╗░░██╗████████╗░█████╗░░██████╗░
+██║░░██║██╔══██╗██╔════╝██║░░██║╚══██╔══╝██╔══██╗██╔════╝░
+███████║███████║╚█████╗░███████║░░░██║░░░███████║██║░░██╗░
+██╔══██║██╔══██║░╚═══██╗██╔══██║░░░██║░░░██╔══██║██║░░╚██╗
+██║░░██║██║░░██║██████╔╝██║░░██║░░░██║░░░██║░░██║╚██████╔╝
+╚═╝░░╚═╝╚═╝░░╚═╝╚═════╝░╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░╚═╝░╚═════╝░
 
-░██████╗░░█████╗░  ░█████╗░██████╗░██╗░░░██╗██████╗░████████╗░█████╗░
-██╔════╝░██╔══██╗  ██╔══██╗██╔══██╗╚██╗░██╔╝██╔══██╗╚══██╔══╝██╔══██╗
-██║░░██╗░███████║  ██║░░╚═╝██████╔╝░╚████╔╝░██████╔╝░░░██║░░░██║░░██║
-██║░░╚██╗██╔══██║  ██║░░██╗██╔══██╗░░╚██╔╝░░██╔═══╝░░░░██║░░░██║░░██║
-╚██████╔╝██║░░██║  ╚█████╔╝██║░░██║░░░██║░░░██║░░░░░░░░██║░░░╚█████╔╝
-░╚═════╝░╚═╝░░╚═╝  ░╚════╝░╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░░░░░░░╚═╝░░░░╚════╝░
+##########################################################################################
+#                                                                                        #
+#                🚀 THIS SCRIPT IS CREATED BY **HASHTAG**! 🚀                           #
+#                                                                                        #
+#       🌐 Join our revolution in decentralized networks and crypto innovation!          #
+#                                                                                        #
+# 📢 Stay updated:                                                                       #
+#     • Dm me on Telegram: https://t.me/Jayanth24                                        #
+##########################################################################################
+
 EOF
 
+# Add some space after the banner
 printf "\n\n"
-
-##########################################################################################
-#                                                                                        
-#                🚀 THIS SCRIPT IS PROUDLY CREATED BY **GA CRYPTO**! 🚀                 
-#                                                                                        
-#   🌐 Join our revolution in decentralized networks and crypto innovation!               
-#                                                                                        
-# 📢 Stay updated:                                                                      
-#     • Follow us on Telegram: https://t.me/GaCryptOfficial                             
-#     • Follow us on X: https://x.com/GACryptoO                                         
-##########################################################################################
 
 # Green color for advertisement
 GREEN="\033[0;32m"
 RESET="\033[0m"
 
-#!/bin/bash
+# Backup file path
+backup_file="$HOME/nodes_backup.json"
 
-# Ensure required packages are installed
-echo "📦 Installing dependencies..."
-sudo apt update -y && sudo apt install -y pciutils libgomp1 curl wget
-sudo apt update && sudo apt install -y build-essential libglvnd-dev pkg-config
-
-# Detect if running inside WSL
-IS_WSL=false
-if grep -qi microsoft /proc/version; then
-    IS_WSL=true
-    echo "🖥️ Running inside WSL."
-else
-    echo "🖥️ Running on a native Ubuntu system."
-fi
-
-# Function to check if an NVIDIA GPU is present
-check_nvidia_gpu() {
-    if command -v nvidia-smi &> /dev/null; then
-        echo "✅ NVIDIA GPU detected."
-        return 0
-    elif lspci | grep -i nvidia &> /dev/null; then
-        echo "✅ NVIDIA GPU detected (via lspci)."
-        return 0
-    else
-        echo "⚠️ No NVIDIA GPU found."
-        return 1
-    fi
+# Function to display the menu
+show_menu() {
+    echo ""
+    echo "🌌 Welcome to the Gaia Node Manager! - Made by HASHTAG"
+    echo "🌌 For Doubts, Dm me on Telegram: https://t.me/Jayanth24 "
+    echo ""
+    echo "📝 Select an option:"
+    echo "1). Install Packages"
+    echo "2). Install Nodes (Max-5)"
+    echo "3). Start Nodes"
+    echo "4). Stop Nodes"
+    echo "5). Get NodeId and DeviceId"
+    echo "6). Create Nodes Data Backup File"
+    echo "7). Recover Nodes Data From Backup File"
+    echo "8). Delete All Nodes"
+    echo "9). Exit"
 }
 
-# Function to install CUDA Toolkit 12.8 in WSL or Ubuntu 24.04
-install_cuda() {
-    if $IS_WSL; then
-        echo "🖥️ Installing CUDA for WSL 2..."
-        wget https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-wsl-ubuntu.pin
-        sudo mv cuda-wsl-ubuntu.pin /etc/apt/preferences.d/cuda-repository-pin-600
-        wget https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-wsl-ubuntu-12-8-local_12.8.0-1_amd64.deb
-        sudo dpkg -i cuda-repo-wsl-ubuntu-12-8-local_12.8.0-1_amd64.deb
-        sudo cp /var/cuda-repo-wsl-ubuntu-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/
-    else
-        echo "🖥️ Installing CUDA for Ubuntu 24.04..."
-        wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin
-        sudo mv cuda-ubuntu2404.pin /etc/apt/preferences.d/cuda-repository-pin-600
-        wget https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_amd64.deb
-        sudo dpkg -i cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_amd64.deb
-        sudo cp /var/cuda-repo-ubuntu2404-12-8-local/cuda-*-keyring.gpg /usr/share/keyrings/
+# Function to install required packages
+install_packages() {
+    echo "📦 Installing required packages..."
+
+    # Check if running as root
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "This script must be run as root. Try: sudo $0"
+        exit 1
     fi
 
-    sudo apt-get update
-    sudo apt-get -y install cuda-toolkit-12-8
-    setup_cuda_env
-}
+    # Fix Google Chrome GPG key issue
+    if ! test -f /etc/apt/trusted.gpg.d/google-chrome.asc; then
+        echo "Adding Google Chrome GPG key..."
+        wget -qO - https://dl.google.com/linux/linux_signing_key.pub | sudo tee /etc/apt/trusted.gpg.d/google-chrome.asc
+    else
+        echo "Google Chrome GPG key already exists, skipping."
+    fi
 
-# Function to set up CUDA environment variables
-setup_cuda_env() {
-    echo "🔧 Setting up CUDA environment variables..."
-    echo 'export PATH=/usr/local/cuda-12.8/bin${PATH:+:${PATH}}' >> ~/.bashrc
-    echo 'export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}' >> ~/.bashrc
-    source ~/.bashrc
-}
+    # Update package lists
+    echo "Updating package list..."
+    apt update -q || { echo "❌ Failed to update package list"; exit 1; }
 
-# Function to check CUDA version and install GaiaNet accordingly
-get_cuda_version() {
-    if command -v nvcc &> /dev/null; then
-        CUDA_VERSION=$(nvcc --version | grep 'release' | awk '{print $6}' | cut -d',' -f1 | sed 's/V//g' | cut -d'.' -f1)  
-        echo "✅ CUDA version detected: $CUDA_VERSION"
+    # Show upgradable packages
+    echo "Checking for upgradable packages..."
+    UPGRADABLE=$(apt list --upgradable 2>/dev/null | grep -v "Listing..." || true)
 
-        if [[ "$CUDA_VERSION" == "11" ]]; then
-            echo "🔧 Installing GaiaNet with ggmlcuda 11..."
-            curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --ggmlcuda 11
-        elif [[ "$CUDA_VERSION" == "12" ]]; then
-            echo "🔧 Installing GaiaNet with ggmlcuda 12..."
-            curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --ggmlcuda 12
+    if [ -z "$UPGRADABLE" ]; then
+        echo "All packages are up to date. Skipping upgrade."
+    else
+        echo "Upgradable packages found:"
+        echo "$UPGRADABLE"
+        echo "Upgrading packages..."
+        apt upgrade -y || { echo "❌ Failed to upgrade packages"; exit 1; }
+    fi
+
+    # List of required packages
+    REQUIRED_PACKAGES=(
+        nvtop
+        sudo
+        curl
+        htop
+        systemd
+        fonts-noto-color-emoji
+        git
+        nano
+        jq
+        screen
+        net-tools
+        lsof
+    )
+
+    # Install required packages
+    for pkg in "${REQUIRED_PACKAGES[@]}"; do
+        if ! dpkg -l | grep -qw "$pkg"; then
+            echo "❌ $pkg is not installed. Installing $pkg..."
+            apt install -y "$pkg" || { echo "❌ Failed to install $pkg"; exit 1; }
         else
-            echo "⚠️ Unsupported CUDA version detected. Exiting..."
-            exit 1
+            echo "✅ $pkg is already installed, skipping."
         fi
+    done
+
+    echo "✅ All required packages have been installed or updated."
+}
+
+# Function to create a single node
+create_node() {
+    local node_number=$1
+    local config_link=$2
+    local folder_name="gaia-node-$node_number"
+    local port_number=$((8100 + node_number))
+
+    # Check if the folder already exists
+    if [ -d "$HOME/$folder_name" ]; then
+        echo "⚠️ Folder $folder_name already exists. Skipping folder creation."
+        
+        echo "🔧 Installing or reconfiguring node in $folder_name..."
+        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; exit 1; }
+        source /root/.bashrc
     else
-        echo "⚠️ CUDA not found. Installing CUDA Toolkit 12.8..."
-        install_cuda
+        # If the folder doesn't exist, create it and install the node
+        echo "🚀 Creating node $node_number..."
+        mkdir -p "$HOME/$folder_name"
+        echo "📂 Folder created: $folder_name"
+
+        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; exit 1; }
+        source /root/.bashrc
     fi
+
+    # Initialize the node with the provided config link
+    echo "⚙️ Initializing node with config: $config_link"
+    gaianet init --base "$HOME/$folder_name" --config "$config_link" || { echo "❌ Failed to initialize node"; exit 1; }
+
+    echo "🔧 Changing port to $port_number..."
+    gaianet config --base "$HOME/$folder_name" --port "$port_number" || { echo "❌ Failed to change port"; exit 1; }
+
+    echo "⚙️ Re-initializing node..."
+    gaianet init --base "$HOME/$folder_name" || { echo "❌ Failed to re-initialize node"; exit 1; }
+
+    echo "✅ Node $node_number setup completed successfully with config: $config_link"
 }
 
-# Function to install GaiaNet
-install_gaianet() {
-    echo "📥 Installing GaiaNet node..."
-    curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash
+# Function to start nodes
+start_nodes() {
+    echo "🚀 Starting nodes..."
+    for ((i = 101; i <= 150; i++)); do
+        if [ -d "$HOME/gaia-node-$i" ]; then
+            gaianet start --base "$HOME/gaia-node-$i" || { echo "❌ Failed to start gaia-node-$i"; continue; }
+            echo "✅ Started gaia-node-$i"
+        else
+            echo "⚠️ Node gaia-node-$i not found. Skipping..."
+        fi
+        echo "════════════════════════════════════════════════════════════════════════════════"
+    done
 }
 
-# Function to add GaiaNet to PATH
-add_gaianet_to_path() {
-    echo 'export PATH=$HOME/gaianet/bin:$PATH' >> ~/.bashrc
-    source ~/.bashrc
+# Function to stop nodes
+stop_nodes() {
+    echo "🛑 Stopping nodes..."
+    for ((i = 101; i <= 150; i++)); do
+        if [ -d "$HOME/gaia-node-$i" ]; then
+            gaianet stop --base "$HOME/gaia-node-$i" || { echo "❌ Failed to stop gaia-node-$i"; continue; }
+            echo "✅ Stopped gaia-node-$i"
+        else
+            echo "⚠️ Node gaia-node-$i not found. Skipping..."
+        fi
+        echo "════════════════════════════════════════════════════════════════════════════════"
+    done
 }
 
-# Run checks and installations
-if check_nvidia_gpu; then
-    setup_cuda_env  # ✅ Set up CUDA environment first
-    get_cuda_version  # ✅ Now check CUDA version
-    install_gaianet
-    add_gaianet_to_path
-    echo "⚙️ Initializing GaiaNet node with CUDA..."
-    ~/gaianet/bin/gaianet init --config https://raw.githubusercontent.com/Jayanth2407/Gaia_Node/main/config.json || { echo "❌ GaiaNet initialization failed!"; exit 1; }
-else
-    install_gaianet
-    add_gaianet_to_path
-    echo "⚙️ Initializing GaiaNet node without CUDA..."
-    ~/gaianet/bin/gaianet init --config https://raw.githubusercontent.com/abhiag/Gaia_Node/main/config2.json || { echo "❌ GaiaNet initialization failed!"; exit 1; }
-fi
+# Function to display NodeId and DeviceId
+get_node_info() {
+    echo "📄 Displaying NodeId and DeviceId..."
+    for ((i = 101; i <= 150; i++)); do
+        node_path="$HOME/gaia-node-$i"
+        if [ -d "$node_path" ]; then
+            echo "🔍 Found: gaia-node-$i"
+            gaianet info --base "$node_path" || { echo "❌ Failed to get info for gaia-node-$i"; continue; }
+        else
+            echo "⚠️ Not found: gaia-node-$i"
+        fi
+        echo "════════════════════════════════════════════════════════════════════════════════"
+    done
+}
 
-# Start GaiaNet node
-echo "🚀 Starting GaiaNet node..."
-~/gaianet/bin/gaianet config --domain gaia.domains
-~/gaianet/bin/gaianet start || { echo "❌ Error: Failed to start GaiaNet node!"; exit 1; }
+# Function to create backup of nodes
+backup_nodes() {
+    backup_file="$HOME/nodes_backup.json"
+    echo "📦 Creating backup of NodeId and DeviceId..."
+    backup_data="{}"
 
-echo "🔍 Fetching GaiaNet node information..."
-~/gaianet/bin/gaianet info || { echo "❌ Error: Failed to fetch GaiaNet node information!"; exit 1; }
+    for ((i = 101; i <= 150; i++)); do
+        folder_name="gaia-node-$i"
+        node_id_file="$HOME/$folder_name/nodeid.json"
+        device_id_file="$HOME/$folder_name/deviceid.txt"
 
-# Closing message
-echo "==========================================================="
-echo "🎉 Congratulations! Your GaiaNet node is successfully set up!"
-echo "🌟 Stay connected: Telegram: https://t.me/GaCryptOfficial | Twitter: https://x.com/GACryptoO"
-echo "💪 Together, let's build the future of decentralized networks!"
-echo "===========================================================" 
-echo "==========================================================="
-echo "🎉 Congratulations! Your GaiaNet node is successfully set up!"
-echo "🌟 Stay connected: Telegram: https://t.me/GaCryptOfficial | Twitter: https://x.com/GACryptoO"
-echo "💪 Together, let's build the future of decentralized networks!"
-echo "==========================================================="
+        if [[ -f "$node_id_file" && -f "$device_id_file" ]]; then
+            node_id=$(cat "$node_id_file")
+            device_id=$(cat "$device_id_file")
+
+            backup_data=$(echo "$backup_data" | jq ". + {\"$folder_name\": { \"nodeid\": $node_id, \"deviceid\": \"$device_id\" }}")
+            echo "✅ Backup for $folder_name completed!"
+        else
+            echo "❌ Skipping $folder_name (missing files)"
+        fi
+    done
+
+    echo "$backup_data" > "$backup_file"
+    echo "🚀 Backup saved to $backup_file"
+}
+
+# Function to recover nodes
+recover_nodes() {
+    if ! command -v jq &> /dev/null; then
+        echo "❌ 'jq' is not installed. Please install it first."
+        exit 1
+    fi
+
+    echo "🔄 Recovering nodes from backup..."
+
+    if [[ ! -f "$backup_file" ]]; then
+        echo "❌ No backup file found at $backup_file"
+        return
+    fi
+
+    if ! jq empty "$backup_file" &> /dev/null; then
+        echo "❌ Backup file is corrupted or invalid."
+        return
+    fi
+
+    cat "$backup_file" | jq -c 'to_entries[]' | while IFS= read -r entry; do
+        folder_name=$(echo "$entry" | jq -r '.key')
+        node_id=$(echo "$entry" | jq -c '.value.nodeid')
+        device_id=$(echo "$entry" | jq -r '.value.deviceid')
+
+        if [ -d "$HOME/$folder_name" ]; then
+            echo "⚠️ Folder $folder_name already exists. Skipping."
+        else
+            echo "📂 Creating folder: $folder_name"
+            mkdir -p "$HOME/$folder_name"
+
+            echo "$node_id" > "$HOME/$folder_name/nodeid.json"
+            echo "$device_id" > "$HOME/$folder_name/deviceid.txt"
+
+            echo "✅ Node $folder_name recovered successfully!"
+        fi
+    done
+}
+
+# Function to delete nodes
+delete_nodes() {
+    echo "🗑️ Are you sure you want to delete all nodes from 101 to 150? This action cannot be undone. (yes/no)"
+    read -r confirmation
+    if [[ "$confirmation" != "yes" ]]; then
+        echo "❌ Node deletion canceled."
+        return
+    fi
+
+    echo "🗑️ Deleting nodes..."
+    for ((i = 101; i <= 150; i++)); do
+        folder_name="gaia-node-$i"
+        if [ -d "$HOME/$folder_name" ]; then
+            gaianet stop --base "$HOME/$folder_name"
+            rm -rf "$HOME/$folder_name"
+            echo "🗑️ Deleted $folder_name"
+        else
+            echo "⚠️ Node $folder_name not found. Skipping..."
+        fi
+    done
+}
+
+# Main script loop
+while true; do
+    show_menu
+    read -rp "Enter your choice: " choice
+    case $choice in
+        1) install_packages ;;
+        2) 
+            echo "📝 Enter config link for all nodes:"
+            while true; do
+                read -r config_link
+                if [[ $config_link =~ ^https?:// ]]; then
+                    break
+                else
+                    echo "❌ Invalid config link. Please enter a valid URL starting with http:// or https://"
+                fi
+            done
+
+            echo "Enter number of nodes to create (1-5):"
+            read -r count
+            if ! [[ "$count" =~ ^[1-5]$ ]]; then
+                echo "❌ Invalid input! Please enter a number between 1 and 5."
+            else
+                for ((i = 1; i <= count; i++)); do
+                    create_node "$((100 + i))" "$config_link"
+                done
+            fi
+            ;;
+        3) start_nodes ;;
+        4) stop_nodes ;;
+        5) get_node_info ;;
+        6) backup_nodes ;;
+        7) recover_nodes ;;
+        8) delete_nodes ;;
+        9) echo "⏹️ Exiting..."; exit 0 ;;
+        *) echo "❌ Invalid choice. Please enter a valid option." ;;
+    esac
+done
