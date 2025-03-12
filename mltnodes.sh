@@ -124,9 +124,9 @@ install_packages() {
 # Function to create a single node
 create_node() {
     local node_number=$1
-    local config_link=$2
     local folder_name="gaia-node-$node_number"
     local port_number=$((8100 + node_number))
+    local config_link="https://raw.githubusercontent.com/Jayanth2407/gaiaNode/refs/heads/main/config.json"
 
     # Check if the folder already exists
     if [ -d "$HOME/$folder_name" ]; then
@@ -145,7 +145,7 @@ create_node() {
         source /root/.bashrc
     fi
 
-    # Initialize the node with the provided config link
+    # Initialize the node with the fixed config link
     echo "⚙️ Initializing node with config: $config_link"
     gaianet init --base "$HOME/$folder_name" --config "$config_link" || { echo "❌ Failed to initialize node"; exit 1; }
 
@@ -157,6 +157,7 @@ create_node() {
 
     echo "✅ Node $node_number setup completed successfully with config: $config_link"
 }
+
 
 # Function to start nodes
 start_nodes() {
