@@ -220,16 +220,31 @@ create_node() {
 # Function to start nodes
 start_nodes() {
     echo "🚀 Starting nodes..."
-    for node_folder in "$HOME"/gaia-node-*; do
-        if [ -d "$node_folder" ]; then
-            node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
-            echo "🔧 Starting gaia-node-$node_number..."
-            gaianet start --base "$node_folder" || { echo "❌ Failed to start gaia-node-$node_number"; continue; }
-            echo "✅ Started gaia-node-$node_number"
-            echo "════════════════════════════════════════════════════════════════════════════════"
-        fi
-    done
+
+    # Check if there are any matching folders
+    if compgen -G "$HOME/gaia-node-*" > /dev/null; then
+        for node_folder in "$HOME"/gaia-node-*; do
+            if [ -d "$node_folder" ]; then
+                node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
+
+                echo "🔧 Starting gaia-node-$node_number..."
+
+                # Start the node and log errors
+                gaianet start --base "$node_folder" >> "$node_folder/start.log" 2>&1
+                if [ $? -eq 0 ]; then
+                    echo "✅ Started gaia-node-$node_number"
+                else
+                    echo "❌ Failed to start gaia-node-$node_number. Check $node_folder/start.log"
+                fi
+
+                echo "════════════════════════════════════════════════════════════════════════════════"
+            fi
+        done
+    else
+        echo "❗ No gaia-node folders found in $HOME"
+    fi
 }
+
 
 # Function to stop nodes
 stop_nodes() {
