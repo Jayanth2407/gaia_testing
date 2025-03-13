@@ -184,12 +184,12 @@ create_node() {
     local node_number=$1
     local config_link=$2
     local folder_name="gaia-node-$node_number"
-    local port_number=$((8100 + node_number))
+    local port_number=$((8000 + node_number))
 
     # Check if the folder already exists
     if [ -d "$HOME/$folder_name" ]; then
         echo "⚠️ Folder $folder_name already exists. Skipping folder creation."
-        
+
         echo "🔧 Installing or reconfiguring node in $folder_name..."
         curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; return 1; }
         source ~/.bashrc
@@ -199,6 +199,7 @@ create_node() {
         mkdir -p "$HOME/$folder_name"
         echo "📂 Folder created: $folder_name"
 
+        # Install the node
         curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; return 1; }
         source ~/.bashrc
     fi
@@ -207,13 +208,15 @@ create_node() {
     echo "⚙️ Initializing node with config: $config_link"
     gaianet init --base "$HOME/$folder_name" --config "$config_link" || { echo "❌ Failed to initialize node"; return 1; }
 
+    # Update the port number (folder number + 8000)
     echo "🔧 Changing port to $port_number..."
     gaianet config --base "$HOME/$folder_name" --port "$port_number" || { echo "❌ Failed to change port"; return 1; }
 
+    # Final re-initialization (if needed)
     echo "⚙️ Re-initializing node..."
     gaianet init --base "$HOME/$folder_name" || { echo "❌ Failed to re-initialize node"; return 1; }
 
-    echo "✅ Node $node_number setup completed successfully with config: $config_link"
+    echo "✅ Node $node_number setup completed successfully with config: $config_link and port: $port_number"
 }
 
 # Function to start nodes
