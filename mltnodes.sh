@@ -49,17 +49,16 @@ show_menu() {
     echo "🌌 For Doubts, Dm me on Telegram: https://t.me/Jayanth24 "
     echo ""
     echo "📝 Select an option:"
-    echo "0). Install CUDA Toolkit 12.8 (Only for Gpu)"
+    echo "0). Install CUDA Toolkit 12.8 (For for Gpu)"
     echo "1). Install Packages"
     echo "2). Install Nodes (Max-50)"
-    echo "3). Start Nodes✅"
-    echo "4). Stop Nodes❌"
+    echo "3). Start Nodes"
+    echo "4). Stop Nodes"
     echo "5). Get NodeId and DeviceId"
-    echo "6). Check Node Port's Running Status"
-    echo "7). Create Nodes Data Backup File"
-    echo "8). Recover Nodes Data From Backup File"
-    echo "9). Delete All Nodes"
-    echo "10). Exit"
+    echo "6). Create Nodes Data Backup File"
+    echo "7). Recover Nodes Data From Backup File"
+    echo "8). Delete All Nodes"
+    echo "9). Exit"
 }
 
 # Function to check for sudo permissions
@@ -270,13 +269,6 @@ get_node_info() {
     done
 }
 
-# Function to check running ports
-check_ports() {
-    echo "🔍 Checking running ports for all 50 nodes (8101–8150)..."
-    sudo netstat -tulnp | grep -E ':(81[0-4][0-9]|8150)' || echo "❌ No active nodes found on ports 8101–8150"
-    echo "════════════════════════════════════════════════════════════════════════════════"
-}
-
 # Function to create backup of nodes
 backup_nodes() {
     backup_file="$HOME/nodes_backup.json"
@@ -403,11 +395,10 @@ while true; do
         3) start_nodes ;;
         4) stop_nodes ;;
         5) get_node_info ;;
-        6) check_ports ;;
-        7) backup_nodes ;;
-        8) recover_nodes ;;
-        9) delete_nodes ;;
-        10) echo "⏹️ Exiting..."; exit 0 ;;
+        6) backup_nodes ;;
+        7) recover_nodes ;;
+        8) delete_nodes ;;
+        9) echo "⏹️ Exiting..."; exit 0 ;;
         *) echo "❌ Invalid choice. Please enter a valid option." ;;
     esac
 done
