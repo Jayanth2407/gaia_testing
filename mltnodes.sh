@@ -46,6 +46,7 @@ show_menu() {
     echo "🌌 For Doubts, Dm me on Telegram: https://t.me/Jayanth24 "
     echo ""
     echo "📝 Select an option:"
+    echo "0). Install CUDA Toolkit 12.8 (For for Gpu)"
     echo "1). Install Packages"
     echo "2). Install Nodes (Max-50)"
     echo "3). Start Nodes"
@@ -55,6 +56,63 @@ show_menu() {
     echo "7). Recover Nodes Data From Backup File"
     echo "8). Delete All Nodes"
     echo "9). Exit"
+}
+
+# Function to install CUDA Toolkit 12.8 in WSL or Ubuntu 24.04
+install_cuda() {
+    if $IS_WSL; then
+        echo "🖥️ Installing CUDA for WSL 2..."
+        # Define file names and URLs for WSL
+        PIN_FILE="cuda-wsl-ubuntu.pin"
+        PIN_URL="https://developer.download.nvidia.com/compute/cuda/repos/wsl-ubuntu/x86_64/cuda-wsl-ubuntu.pin"
+        DEB_FILE="cuda-repo-wsl-ubuntu-12-8-local_12.8.0-1_amd64.deb"
+        DEB_URL="https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-wsl-ubuntu-12-8-local_12.8.0-1_amd64.deb"
+    else
+        echo "🖥️ Installing CUDA for Ubuntu 24.04..."
+        # Define file names and URLs for Ubuntu 24.04
+        PIN_FILE="cuda-ubuntu2404.pin"
+        PIN_URL="https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2404/x86_64/cuda-ubuntu2404.pin"
+        DEB_FILE="cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_amd64.deb"
+        DEB_URL="https://developer.download.nvidia.com/compute/cuda/12.8.0/local_installers/cuda-repo-ubuntu2404-12-8-local_12.8.0-570.86.10-1_amd64.deb"
+    fi
+
+    # Download the .pin file
+    echo "📥 Downloading $PIN_FILE from $PIN_URL..."
+    wget "$PIN_URL" || { echo "❌ Failed to download $PIN_FILE from $PIN_URL"; exit 1; }
+
+    # Move the .pin file to the correct location
+    sudo mv "$PIN_FILE" /etc/apt/preferences.d/cuda-repository-pin-600 || { echo "❌ Failed to move $PIN_FILE to /etc/apt/preferences.d/"; exit 1; }
+
+    # Remove the .deb file if it exists, then download a fresh copy
+    if [ -f "$DEB_FILE" ]; then
+        echo "🗑️ Deleting existing $DEB_FILE..."
+        rm -f "$DEB_FILE"
+    fi
+    echo "📥 Downloading $DEB_FILE from $DEB_URL..."
+    wget "$DEB_URL" || { echo "❌ Failed to download $DEB_FILE from $DEB_URL"; exit 1; }
+
+    # Install the .deb file
+    sudo dpkg -i "$DEB_FILE" || { echo "❌ Failed to install $DEB_FILE"; exit 1; }
+
+    # Copy the keyring
+    sudo cp /var/cuda-repo-*/cuda-*-keyring.gpg /usr/share/keyrings/ || { echo "❌ Failed to copy CUDA keyring to /usr/share/keyrings/"; exit 1; }
+
+    # Update the package list and install CUDA Toolkit 12.8
+    echo "🔄 Updating package list..."
+    sudo apt-get update || { echo "❌ Failed to update package list"; exit 1; }
+    echo "🔧 Installing CUDA Toolkit 12.8..."
+    sudo apt-get install -y cuda-toolkit-12-8 || { echo "❌ Failed to install CUDA Toolkit 12.8"; exit 1; }
+
+    echo "✅ CUDA Toolkit 12.8 installed successfully."
+    setup_cuda_env
+}
+
+# Set up CUDA environment variables
+setup_cuda_env() {
+    echo "🔧 Setting up CUDA environment variables..."
+    echo 'export PATH=/usr/local/cuda-12.8/bin${PATH:+:${PATH}}' | sudo tee /etc/profile.d/cuda.sh
+    echo 'export LD_LIBRARY_PATH=/usr/local/cuda-12.8/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}' | sudo tee -a /etc/profile.d/cuda.sh
+    source /etc/profile.d/cuda.sh
 }
 
 # Function to install required packages
@@ -124,36 +182,36 @@ install_packages() {
 # Function to create a single node
 create_node() {
     local node_number=$1
+    local config_link=$2
     local folder_name="gaia-node-$node_number"
     local port_number=$((8100 + node_number))
-    local config_link="https://raw.githubusercontent.com/Jayanth2407/gaiaNode/refs/heads/main/config.json"
 
     # Check if the folder already exists
     if [ -d "$HOME/$folder_name" ]; then
         echo "⚠️ Folder $folder_name already exists. Skipping folder creation."
         
         echo "🔧 Installing or reconfiguring node in $folder_name..."
-        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; exit 1; }
-        source /root/.bashrc
+        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; return 1; }
+        source ~/.bashrc
     else
         # If the folder doesn't exist, create it and install the node
         echo "🚀 Creating node $node_number..."
         mkdir -p "$HOME/$folder_name"
         echo "📂 Folder created: $folder_name"
 
-        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; exit 1; }
-        source /root/.bashrc
+        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; return 1; }
+        source ~/.bashrc
     fi
 
-    # Initialize the node with the fixed config link
+    # Initialize the node with the provided config link
     echo "⚙️ Initializing node with config: $config_link"
-    gaianet init --base "$HOME/$folder_name" --config "$config_link" || { echo "❌ Failed to initialize node"; exit 1; }
+    gaianet init --base "$HOME/$folder_name" --config "$config_link" || { echo "❌ Failed to initialize node"; return 1; }
 
     echo "🔧 Changing port to $port_number..."
-    gaianet config --base "$HOME/$folder_name" --port "$port_number" || { echo "❌ Failed to change port"; exit 1; }
+    gaianet config --base "$HOME/$folder_name" --port "$port_number" || { echo "❌ Failed to change port"; return 1; }
 
     echo "⚙️ Re-initializing node..."
-    gaianet init --base "$HOME/$folder_name" || { echo "❌ Failed to re-initialize node"; exit 1; }
+    gaianet init --base "$HOME/$folder_name" || { echo "❌ Failed to re-initialize node"; return 1; }
 
     echo "✅ Node $node_number setup completed successfully with config: $config_link"
 }
@@ -162,43 +220,41 @@ create_node() {
 # Function to start nodes
 start_nodes() {
     echo "🚀 Starting nodes..."
-    for ((i = 101; i <= 150; i++)); do
-        if [ -d "$HOME/gaia-node-$i" ]; then
-            gaianet start --base "$HOME/gaia-node-$i" || { echo "❌ Failed to start gaia-node-$i"; continue; }
-            echo "✅ Started gaia-node-$i"
-        else
-            echo "⚠️ Node gaia-node-$i not found. Skipping..."
+    for node_folder in "$HOME"/gaia-node-*; do
+        if [ -d "$node_folder" ]; then
+            node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
+            echo "🔧 Starting gaia-node-$node_number..."
+            gaianet start --base "$node_folder" || { echo "❌ Failed to start gaia-node-$node_number"; continue; }
+            echo "✅ Started gaia-node-$node_number"
+            echo "════════════════════════════════════════════════════════════════════════════════"
         fi
-        echo "════════════════════════════════════════════════════════════════════════════════"
     done
 }
 
 # Function to stop nodes
 stop_nodes() {
     echo "🛑 Stopping nodes..."
-    for ((i = 101; i <= 150; i++)); do
-        if [ -d "$HOME/gaia-node-$i" ]; then
-            gaianet stop --base "$HOME/gaia-node-$i" || { echo "❌ Failed to stop gaia-node-$i"; continue; }
-            echo "✅ Stopped gaia-node-$i"
-        else
-            echo "⚠️ Node gaia-node-$i not found. Skipping..."
+    for node_folder in "$HOME"/gaia-node-*; do
+        if [ -d "$node_folder" ]; then
+            node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
+            echo "🔧 Stopping gaia-node-$node_number..."
+            gaianet stop --base "$node_folder" || { echo "❌ Failed to stop gaia-node-$node_number"; continue; }
+            echo "✅ Stopped gaia-node-$node_number"
+            echo "════════════════════════════════════════════════════════════════════════════════"
         fi
-        echo "════════════════════════════════════════════════════════════════════════════════"
     done
 }
 
 # Function to display NodeId and DeviceId
 get_node_info() {
     echo "📄 Displaying NodeId and DeviceId..."
-    for ((i = 101; i <= 150; i++)); do
-        node_path="$HOME/gaia-node-$i"
-        if [ -d "$node_path" ]; then
-            echo "🔍 Found: gaia-node-$i"
-            gaianet info --base "$node_path" || { echo "❌ Failed to get info for gaia-node-$i"; continue; }
-        else
-            echo "⚠️ Not found: gaia-node-$i"
+    for node_folder in "$HOME"/gaia-node-*; do
+        if [ -d "$node_folder" ]; then
+            node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
+            echo "🔍 Found: gaia-node-$node_number"
+            gaianet info --base "$node_folder" || { echo "❌ Failed to get info for gaia-node-$node_number"; continue; }
+            echo "════════════════════════════════════════════════════════════════════════════════"
         fi
-        echo "════════════════════════════════════════════════════════════════════════════════"
     done
 }
 
@@ -208,19 +264,21 @@ backup_nodes() {
     echo "📦 Creating backup of NodeId and DeviceId..."
     backup_data="{}"
 
-    for ((i = 101; i <= 150; i++)); do
-        folder_name="gaia-node-$i"
-        node_id_file="$HOME/$folder_name/nodeid.json"
-        device_id_file="$HOME/$folder_name/deviceid.txt"
+    for node_folder in "$HOME"/gaia-node-*; do
+        if [ -d "$node_folder" ]; then
+            folder_name=$(basename "$node_folder")
+            node_id_file="$node_folder/nodeid.json"
+            device_id_file="$node_folder/deviceid.txt"
 
-        if [[ -f "$node_id_file" && -f "$device_id_file" ]]; then
-            node_id=$(cat "$node_id_file")
-            device_id=$(cat "$device_id_file")
+            if [[ -f "$node_id_file" && -f "$device_id_file" ]]; then
+                node_id=$(cat "$node_id_file")
+                device_id=$(cat "$device_id_file")
 
-            backup_data=$(echo "$backup_data" | jq ". + {\"$folder_name\": { \"nodeid\": $node_id, \"deviceid\": \"$device_id\" }}")
-            echo "✅ Backup for $folder_name completed!"
-        else
-            echo "❌ Skipping $folder_name (missing files)"
+                backup_data=$(echo "$backup_data" | jq ". + {\"$folder_name\": { \"nodeid\": $node_id, \"deviceid\": \"$device_id\" }}")
+                echo "✅ Backup for $folder_name completed!"
+            else
+                echo "❌ Skipping $folder_name (missing files)"
+            fi
         fi
     done
 
@@ -268,7 +326,7 @@ recover_nodes() {
 
 # Function to delete nodes
 delete_nodes() {
-    echo "🗑️ Are you sure you want to delete all nodes from 101 to 150? This action cannot be undone. (yes/no)"
+    echo "🗑️ Are you sure you want to delete all nodes? This action cannot be undone. (yes/no)"
     read -r confirmation
     if [[ "$confirmation" != "yes" ]]; then
         echo "❌ Node deletion canceled."
@@ -276,16 +334,18 @@ delete_nodes() {
     fi
 
     echo "🗑️ Deleting nodes..."
-    for ((i = 101; i <= 150; i++)); do
-        folder_name="gaia-node-$i"
-        if [ -d "$HOME/$folder_name" ]; then
-            gaianet stop --base "$HOME/$folder_name"
-            rm -rf "$HOME/$folder_name"
-            echo "🗑️ Deleted $folder_name"
-        else
-            echo "⚠️ Node $folder_name not found. Skipping..."
+    for node_folder in "$HOME"/gaia-node-*; do
+        if [ -d "$node_folder" ]; then
+            folder_name=$(basename "$node_folder")
+            echo "🛑 Stopping $folder_name..."
+            gaianet stop --base "$node_folder" || echo "⚠️ Failed to stop $folder_name (may already be stopped)."
+            echo "🗑️ Deleting $folder_name..."
+            rm -rf "$node_folder"
+            echo "✅ Deleted $folder_name"
+            echo "════════════════════════════════════════════════════════════════════════════════"
         fi
     done
+    echo "✅ All existing nodes have been deleted."
 }
 
 # Main script loop
@@ -293,28 +353,34 @@ while true; do
     show_menu
     read -rp "Enter your choice: " choice
     case $choice in
+        0) install_cuda ;;
         1) install_packages ;;
         2) 
-            echo "📝 Enter config link for all nodes:"
-            while true; do
-                read -r config_link
-                if [[ $config_link =~ ^https?:// ]]; then
-                    break
-                else
-                    echo "❌ Invalid config link. Please enter a valid URL starting with http:// or https://"
-                fi
-            done
+    echo "📝 Enter config link for all nodes:"
+    while true; do
+        read -r config_link
+        if [[ $config_link =~ ^https?:// ]]; then
+            break
+        else
+            echo "❌ Invalid config link. Please enter a valid URL starting with http:// or https://"
+        fi
+    done
 
-            echo "Enter number of nodes to create (1-50):"
-            read -r count
-            if ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -lt 1 ] || [ "$count" -gt 50 ]; then
-                echo "❌ Invalid input! Please enter a number between 1 and 50."
-            else
-                for ((i = 1; i <= count; i++)); do
-                    create_node "$((100 + i))" "$config_link"
-                done
+    echo "Enter number of nodes to create (1-50):"
+    read -r count
+    if ! [[ "$count" =~ ^[0-9]+$ ]] || [ "$count" -lt 1 ] || [ "$count" -gt 50 ]; then
+        echo "❌ Invalid input! Please enter a number between 1 and 50."
+    else
+        for ((i = 1; i <= count; i++)); do
+            echo "🚀 Setting up node $((100 + i))..."
+            if ! create_node "$((100 + i))" "$config_link"; then
+                echo "⚠️ Failed to set up node $((100 + i)). Continuing with the next node..."
             fi
-            ;;
+            echo "════════════════════════════════════════════════════════════════════════════════"
+        done
+        echo "✅ All nodes have been processed."
+    fi
+    ;;
         3) start_nodes ;;
         4) stop_nodes ;;
         5) get_node_info ;;
