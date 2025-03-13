@@ -219,17 +219,26 @@ create_node() {
     echo "✅ Node $node_number setup completed successfully with config: $config_link and port: $port_number"
 }
 
-# Function to start nodes
+# Function to start nodes one by one
 start_nodes() {
-    echo "🚀 Starting nodes..."
-    for ((i = 101; i <= 150; i++)); do
-        if [ -d "$HOME/gaia-node-$i" ]; then
-            gaianet start --base "$HOME/gaia-node-$i" || { echo "❌ Failed to start gaia-node-$i"; continue; }
-            echo "✅ Started gaia-node-$i"
-        else
-            echo "⚠️ Node gaia-node-$i not found. Skipping..."
+    echo "🚀 Starting nodes sequentially..."
+    
+    for node_folder in "$HOME"/gaia-node-*; do
+        if [ -d "$node_folder" ]; then
+            node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
+            echo "🔧 Starting gaia-node-$node_number..."
+            
+            # Start the node and wait until it completes before moving to the next
+            gaianet start --base "$node_folder"
+            
+            if [ $? -eq 0 ]; then
+                echo "✅ Finished gaia-node-$node_number successfully."
+            else
+                echo "❌ Failed to start gaia-node-$node_number. Skipping..."
+            fi
+
+            echo "════════════════════════════════════════════════════════════════════════════════"
         fi
-        echo "════════════════════════════════════════════════════════════════════════════════"
     done
 }
 
