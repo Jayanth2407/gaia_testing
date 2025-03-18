@@ -45,7 +45,7 @@ show_menu() {
     echo "4). Stop Nodes"
     echo "5). Get NodeId and DeviceId"
     echo "6). Create Nodes Data Backup File"
-    echo "7). Recover Nodes Data From Backup File"
+    echo "7). Recover Nodes Data From Backup File ( nodes_backup.json )"
     echo "8). Delete All Nodes"
     echo "9). Exit"
 }
@@ -187,14 +187,25 @@ stop_nodes() {
 # Function to display NodeId and DeviceId
 get_node_info() {
     echo "📄 Displaying NodeId and DeviceId..."
+    
     for node_folder in "$HOME"/gaia-node-*; do
-        if [ -d "$node_folder" ]; then
+        # Ensure it's a valid directory
+        if [[ -d "$node_folder" ]]; then
             node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
-            echo "🔍 Found: gaia-node-$node_number"
-            gaianet info --base "$node_folder" || { echo "❌ Failed to get info for gaia-node-$node_number"; continue; }
+            echo "🔍 Retrieving info for gaia-node-$node_number..."
+
+            # Execute gaianet info and handle potential failures
+            if gaianet info --base "$node_folder"; then
+                echo "✅ Successfully retrieved info for gaia-node-$node_number."
+            else
+                echo "❌ Failed to get info for gaia-node-$node_number. Skipping..."
+            fi
+
             echo "════════════════════════════════════════════════════════════════════════════════"
         fi
     done
+
+    echo "✅ All nodes have been processed."
 }
 
 # Function to create backup of nodes
