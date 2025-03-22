@@ -73,40 +73,38 @@ create_node() {
     local folder_name="gaia-node-$node_number"
     local port_number=$((8000 + node_number))
 
-    # Check if the folder already exists
+    echo "🔄 Processing node: $node_number (Folder: $folder_name, Port: $port_number)"
+
+    # Check if the folder exists
     if [ -d "$HOME/$folder_name" ]; then
         echo "⚠️ Folder $folder_name already exists. Skipping folder creation."
-
-        echo "🔧 Installing or reconfiguring node in $folder_name..."
-        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; return 1; }
-        source ~/.bashrc
     else
-        # If the folder doesn't exist, create it and install the node
         echo "🚀 Creating node $node_number..."
         mkdir -p "$HOME/$folder_name"
         echo "📂 Folder created: $folder_name"
-
-        # Install the node
-        curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; return 1; }
-        source ~/.bashrc
     fi
+
+    # Install or update the node
+    echo "🔧 Installing or updating GaiaNet node in $folder_name..."
+    curl -sSfL 'https://github.com/GaiaNet-AI/gaianet-node/releases/latest/download/install.sh' | bash -s -- --base "$HOME/$folder_name" || { echo "❌ Failed to install node"; return 1; }
+    source ~/.bashrc
 
     # Initialize the node with the provided config link
     echo "⚙️ Initializing node with config: $config_link"
     gaianet init --base "$HOME/$folder_name" --config "$config_link" || { echo "❌ Failed to initialize node"; return 1; }
 
-    # Update the port number (folder number + 8000)
+    # Assign the port number
     echo "🔧 Changing port to $port_number..."
     gaianet config --base "$HOME/$folder_name" --port "$port_number" || { echo "❌ Failed to change port"; return 1; }
 
-    # Final re-initialization (if needed)
+    # Final re-initialization
     echo "⚙️ Re-initializing node..."
     gaianet init --base "$HOME/$folder_name" || { echo "❌ Failed to re-initialize node"; return 1; }
 
     echo "✅ Node $node_number setup completed successfully with config: $config_link and port: $port_number"
 }
 
-# Function to install nodes
+# Function to install multiple nodes
 install_nodes() {
     echo "📝 Enter config link for all nodes:"
     while :; do
@@ -136,8 +134,19 @@ install_nodes() {
     echo "✅ All nodes have been processed."
 }
 
-# Function to start nodes
+# Function to start nodes with CUDA support (if available)
 start_nodes() {
+    echo "🚀 Checking for CUDA support..."
+
+    # Check if CUDA is installed
+    if command -v nvidia-smi &>/dev/null && nvidia-smi --query-gpu=name --format=csv,noheader | grep -q .; then
+        echo "✅ CUDA detected! Running nodes with GPU acceleration."
+        use_cuda=true
+    else
+        echo "⚠️ CUDA not detected! Running nodes on CPU."
+        use_cuda=false
+    fi
+
     echo "🚀 Starting nodes sequentially..."
     
     for node_folder in "$HOME"/gaia-node-*; do
@@ -145,9 +154,16 @@ start_nodes() {
         if [[ -d "$node_folder" ]]; then
             node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
             echo "🔧 Starting gaia-node-$node_number..."
-            
-            # Start the node and wait until it completes before moving to the next
-            if gaianet start --base "$node_folder"; then
+
+            if [[ "$use_cuda" == true ]]; then
+                # Run with CUDA
+                CUDA_VISIBLE_DEVICES=0 gaianet start --base "$node_folder"
+            else
+                # Run normally (CPU)
+                gaianet start --base "$node_folder"
+            fi
+
+            if [[ $? -eq 0 ]]; then
                 echo "✅ Finished gaia-node-$node_number successfully."
             else
                 echo "❌ Failed to start gaia-node-$node_number. Skipping..."
@@ -160,21 +176,27 @@ start_nodes() {
     echo "✅ All nodes have been processed."
 }
 
-# Function to stop nodes
+# Function to stop nodes safely
 stop_nodes() {
-    echo "🛑 Stopping nodes..."
+    echo "🛑 Checking for running nodes..."
     
     for node_folder in "$HOME"/gaia-node-*; do
         # Ensure it's a valid directory
         if [[ -d "$node_folder" ]]; then
             node_number=$(basename "$node_folder" | grep -o '[0-9]\+')
-            echo "🔧 Stopping gaia-node-$node_number..."
-            
-            # Stop the node and handle errors properly
-            if gaianet stop --base "$node_folder"; then
-                echo "✅ Stopped gaia-node-$node_number"
+
+            # Check if the node is already running
+            if pgrep -f "gaianet.*--base $node_folder" > /dev/null; then
+                echo "🔧 Stopping gaia-node-$node_number..."
+                
+                # Stop the node and handle errors properly
+                if gaianet stop --base "$node_folder"; then
+                    echo "✅ Stopped gaia-node-$node_number"
+                else
+                    echo "❌ Failed to stop gaia-node-$node_number. Skipping..."
+                fi
             else
-                echo "❌ Failed to stop gaia-node-$node_number. Skipping..."
+                echo "⚠️ gaia-node-$node_number is not running. Skipping..."
             fi
 
             echo "════════════════════════════════════════════════════════════════════════════════"
