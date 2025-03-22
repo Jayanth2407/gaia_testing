@@ -52,22 +52,16 @@ show_menu() {
 
 # Function to install packages and CUDA
 install_packages_and_cuda() {
-    echo "Updating package lists..."
-    apt-get update && apt-get upgrade -y
-
-    echo "Downloading CUDA keyring..."
-    wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
-
-    echo "Installing CUDA keyring..."
-    dpkg -i cuda-keyring_1.1-1_all.deb
-
-    echo "Updating package lists after adding CUDA repository..."
-    apt-get update
-
-    echo "Installing CUDA Toolkit 12.8..."
-    apt-get -y install cuda-toolkit-12-8
-
-    echo "CUDA installation complete!"
+    echo "📦 Installing packages and CUDA Toolkit..."
+    
+    # Download the packageskit.sh script from GitHub
+    curl -O https://raw.githubusercontent.com/Jayanth2407/gaia_testing/main/packageskit.sh || { echo "❌ Failed to download packageskit.sh"; exit 1; }
+    
+    # Make the script executable
+    chmod +x packageskit.sh
+    
+    # Execute the script
+    ./packageskit.sh
     
     echo "✅ Packages and CUDA installation completed."
 }
