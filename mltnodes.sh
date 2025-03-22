@@ -55,7 +55,7 @@ install_packages_and_cuda() {
     echo "📦 Installing packages and CUDA Toolkit..."
     
     # Download the packageskit.sh script from GitHub
-    curl -O https://raw.githubusercontent.com/Jayanth2407/gaia_testing/main/packageskit.sh || { echo "❌ Failed to download packageskit.sh"; exit 1; }
+    curl -O https://raw.githubusercontent.com/Jayanth2407/gaia_testing/main/packageskit.sh
     
     # Make the script executable
     chmod +x packageskit.sh
