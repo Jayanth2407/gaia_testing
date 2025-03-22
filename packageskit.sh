@@ -21,7 +21,7 @@ fi
 
 # Update package lists
 echo "Updating package list..."
-apt update -q || { echo "❌ Failed to update package list"; exit 1; }
+apt update -q 
 
 # Show upgradable packages
 echo "Checking for upgradable packages..."
@@ -33,7 +33,7 @@ else
     echo "Upgradable packages found:"
     echo "$UPGRADABLE"
     echo "Upgrading packages..."
-    apt upgrade -y || { echo "❌ Failed to upgrade packages"; exit 1; }
+    apt upgrade -y 
 fi
 
 # List of required packages
@@ -56,7 +56,7 @@ REQUIRED_PACKAGES=(
 for pkg in "${REQUIRED_PACKAGES[@]}"; do
     if ! is_installed "$pkg"; then
         echo "❌ $pkg is not installed. Installing $pkg..."
-        apt install -y "$pkg" || { echo "❌ Failed to install $pkg"; exit 1; }
+        apt install -y "$pkg"
     else
         echo "✅ $pkg is already installed, skipping."
     fi
