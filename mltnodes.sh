@@ -264,7 +264,6 @@ recover_nodes() {
         echo "❌ 'jq' is not installed. Please install it first."
         exit 1
     fi
-
     echo "🔄 Recovering nodes from backup..."
 
     if [[ ! -f "$backup_file" ]]; then
